@@ -2,7 +2,6 @@
 # session log +replay için snapshot, GUI/CLI/Replay uyumlu
 
 from typing import Dict, Any, Optional
-
 from core.intervals import is_valid_interval
 from core.risk_governor import RiskGovernor
 from core.signal_logic import SignalLogic, Signal
@@ -83,7 +82,7 @@ class Engine:
             indicator_data=raw_analysis_inputs.get("indicator", {}),
             volatility_data=raw_analysis_inputs.get("volatility", {}),
             interval=interval
-        )
+            )
         feature_dict = feature_to_dict(feature)
 
         # -----------------------------
