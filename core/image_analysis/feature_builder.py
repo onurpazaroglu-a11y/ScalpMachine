@@ -16,7 +16,7 @@ if str(INDICATORS_PATH) not in sys.path:
     sys.path.append(str(INDICATORS_PATH))
 
 try:
-    from indicator_setup import DB_PATH, load_indicators_from_db
+    from indicators.indicator_setup import DB_PATH, load_indicators_from_db
 except ModuleNotFoundError:
     raise ModuleNotFoundError(py modülü bulunamadı. indicators klasörün
         "indicator_setup.py modülü bulunamadı. indicators klasöründe olduğundan emin ol."
