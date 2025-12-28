@@ -1,0 +1,7 @@
+{
+  "candle_direction": "bullish",
+  "body_ratio": 0.62,
+  "ema_cross": true,
+  "rsi_zone": "overbought",
+  "volatility_score": 0.71
+}
