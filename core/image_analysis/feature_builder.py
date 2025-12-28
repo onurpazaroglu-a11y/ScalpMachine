@@ -9,18 +9,53 @@ from dataclasses import dataclass
 from typing import List, Optional
 from pathlib import Path
 
-# =================== IMPORT INDICATORS ===================
-# indicators klasörünü path’e ekle
-INDICATORS_PATH = Path(__file__).parent.parent / "indicators"
-if str(INDICATORS_PATH) not in sys.path:
-    sys.path.append(str(INDICATORS_PATH))
+# =================== PROJE KÖKÜ VE DB YOLU ===================
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+INDICATORS_DB_PATH = PROJECT_ROOT / "indicators/indicators/indicatorlist.db"
 
-try:
-    from indicators.indicator_setup import DB_PATH, load_indicators_from_db
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(py modülü bulunamadı. indicators klasörün
-        "indicator_setup.py modülü bulunamadı. indicators klasöründe olduğundan emin ol."
-    )
+# =================== LOAD INDICATORS ===================
+def load_indicators_from_db(session_id=None, list_name=None):
+    """
+    DB'den indikatör listesini çeker.
+    session_id ve list_name opsiyonel; filtreleme için kullanılabilir.
+    """
+    db_path = INDICATORS_DB_PATH
+    if not db_path.exists():
+        raise FileNotFoundError(f"DB dosyası bulunamadı: {db_path}")
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    query = """
+    SELECT INDICATOR_NAME, COLOR, LINE_THICKNESS, PARAMS
+    FROM "indicator_lists"
+    """
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    conn.close()
+
+    indicators = []
+    for name, color_json, line_thickness, params_json in rows:
+        # COLOR parse
+        try:
+            color = json.loads(color_json)
+        except:
+            color = [0,0,0]
+
+        # PARAMS parse
+        try:
+            params = json.loads(params_json) if params_json else {}
+        except:
+            params = {}
+
+        indicators.append({
+            "name": name,
+            "color": color,
+            "line_thickness": line_thickness,
+            "params": params
+        })
+
+    return indicators
 
 # =================== DATA STRUCTURES ===================
 @dataclass
@@ -46,7 +81,7 @@ class PixelPriceCalibration:
     def pixel_to_price(self, y_pixel: float) -> float:
         pixel_range = self.pixel_bottom - self.pixel_top
         if pixel_range == 0:
-            raise ValueError("Invalid calibration")
+            raise ValueError("Invalid calibration: pixel range cannot be zero")
         price_range = self.price_bottom - self.price_top
         scale = price_range / pixel_range
         return self.price_top + (y_pixel - self.pixel_top) * scale
@@ -90,10 +125,10 @@ class FeatureBuilder:
         h, _ = gray.shape
         candles = []
         for cnt in contours:
-            x, y, w, ch = cv2.boundingRect(cnt)
-            if ch < h*0.05: continue
-            if ch/max(w,1) < 2: continue
-            candles.append(self._build_candle_from_rect(y,ch,h))
+            x, y, w, h_c = cv2.boundingRect(cnt)
+            if h_c < h*0.05: continue
+            if h_c/max(w,1) < 2: continue
+            candles.append(self._build_candle_from_rect(y, h_c, h))
         candles.reverse()
         return candles
 

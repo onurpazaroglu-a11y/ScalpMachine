@@ -1,14 +1,12 @@
 #   ScalpMachine Main entry
 
 from pathlib import Path
-
 from core.image_analysis.loader import Loader
 from core.image_analysis.feature_builder import FeatureBuilder, PixelPriceCalibration
 from core.image_analysis.candle_detector import CandleDetector
 from ai.decision_bias import DecisionBias
 from ai.learner import Learner
 from core.engine import Engine
-
 
 # =================================================
 # PATHS
