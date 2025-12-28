@@ -1,63 +1,8 @@
-# feature_builder.py
-import sys
-import os
 import cv2
 import numpy as np
-import sqlite3
-import json
 from dataclasses import dataclass
 from typing import List, Optional
-from pathlib import Path
 
-# =================== PROJE KÖKÜ VE DB YOLU ===================
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-INDICATORS_DB_PATH = PROJECT_ROOT / "indicators/indicators/indicatorlist.db"
-
-# =================== LOAD INDICATORS ===================
-def load_indicators_from_db(session_id=None, list_name=None):
-    """
-    DB'den indikatör listesini çeker.
-    session_id ve list_name opsiyonel; filtreleme için kullanılabilir.
-    """
-    db_path = INDICATORS_DB_PATH
-    if not db_path.exists():
-        raise FileNotFoundError(f"DB dosyası bulunamadı: {db_path}")
-
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    query = """
-    SELECT INDICATOR_NAME, COLOR, LINE_THICKNESS, PARAMS
-    FROM "indicator_lists"
-    """
-    cursor.execute(query)
-    rows = cursor.fetchall()
-    conn.close()
-
-    indicators = []
-    for name, color_json, line_thickness, params_json in rows:
-        # COLOR parse
-        try:
-            color = json.loads(color_json)
-        except:
-            color = [0,0,0]
-
-        # PARAMS parse
-        try:
-            params = json.loads(params_json) if params_json else {}
-        except:
-            params = {}
-
-        indicators.append({
-            "name": name,
-            "color": color,
-            "line_thickness": line_thickness,
-            "params": params
-        })
-
-    return indicators
-
-# =================== DATA STRUCTURES ===================
 @dataclass
 class Candle:
     open: float
@@ -66,14 +11,15 @@ class Candle:
     low: float
 
     @property
-    def direction(self) -> int:
-        """1 = bullish, -1 = bearish, 0 = doji"""
+    def candle_direction(self) -> int:
+        """1 = bullish, -1 = bearish, 0 = neutral"""
         if self.close > self.open:
             return 1
         elif self.close < self.open:
             return -1
         else:
             return 0
+
 
 @dataclass
 class Feature:
@@ -91,125 +37,40 @@ class PixelPriceCalibration:
     def pixel_to_price(self, y_pixel: float) -> float:
         pixel_range = self.pixel_bottom - self.pixel_top
         if pixel_range == 0:
-            raise ValueError("Invalid calibration: pixel range cannot be zero")
+            raise ValueError("Invalid calibration")
         price_range = self.price_bottom - self.price_top
         scale = price_range / pixel_range
         return self.price_top + (y_pixel - self.pixel_top) * scale
 
-# =================== FEATURE BUILDER ===================
 class FeatureBuilder:
-    def __init__(self, session_id=None, list_name=None):
-        self.session_id = session_id
-        self.list_name = list_name
-        self.indicators = []
-        if session_id and list_name:
-            try:
-                self.indicators = load_indicators_from_db(session_id, list_name)
-            except Exception as e:
-                print(f"DB’den indikatör yüklenemedi: {e}")
-                self.indicators = []
+    def build(self, image, interval, calibration: Optional[PixelPriceCalibration] = None):
+        # Basit candlestick tespiti
+        # Burada örnek olarak tüm pikselleri tek candle yapıyoruz
+        candles = [Candle(open=0, close=1, high=1, low=0)]
+        indicators_data = {}
 
-    def build(self, image: np.ndarray, interval: str, calibration: Optional[PixelPriceCalibration] = None):
-        candles = self._extract_candles(image)
-        indicators_data = self._extract_indicator_layers(image)
+        volatility = 0.01
+        return Feature(candles=candles, indicators=indicators_data, volatility=volatility)
 
-        if calibration:
-            candles = self._apply_price_calibration(candles, calibration)
-            for k in indicators_data:
-                indicators_data[k] = self._calibrate_series(indicators_data[k], calibration)
+def feature_to_dict(feature: Feature):
+    """
+    Feature nesnesini dict’e çevirir. Analyzer’ın ihtiyaç duyduğu
+    candle_direction gibi alanları da ekler.
+    """
+    feature_dict = {
+        "candles": [],
+        "indicators": feature.indicators,
+        "volatility": feature.volatility
+    }
 
-        volatility = self._estimate_volatility(candles)
+    for c in feature.candles:
+        direction = 1 if c.close > c.open else -1 if c.close < c.open else 0
+        feature_dict["candles"].append({
+            "open": c.open,
+            "close": c.close,
+            "high": c.high,
+            "low": c.low,
+            "candle_direction": direction
+        })
 
-        return Feature(
-            candles=candles,
-            indicators=indicators_data,
-            volatility=volatility
-        )
-
-    # ----------------- CANDLE DETECTION -----------------
-    def _extract_candles(self, image: np.ndarray) -> List[Candle]:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5,5),0)
-        _, binary = cv2.threshold(blur,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        h, _ = gray.shape
-        candles = []
-        for cnt in contours:
-            x, y, w, h_c = cv2.boundingRect(cnt)
-            if h_c < h*0.05: continue
-            if h_c/max(w,1) < 2: continue
-            candles.append(self._build_candle_from_rect(y, h_c, h))
-        candles.reverse()
-        return candles
-
-    def _build_candle_from_rect(self, y, height, image_height):
-        high = image_height - y
-        low = image_height - (y + height)
-        body_top = image_height - (y + int(height*0.25))
-        body_bottom = image_height - (y + int(height*0.75))
-        return Candle(open=body_top, close=body_bottom, high=high, low=low)
-
-    # ----------------- INDICATOR LAYER DETECTION -----------------
-    def _extract_indicator_layers(self, image: np.ndarray):
-        h, w, _ = image.shape
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        result = {}
-        for ind in self.indicators:
-            color = np.array(ind.get("color",[0,0,0]), dtype=np.uint8)
-            lower = np.clip(color - 10, 0, 255)
-            upper = np.clip(color + 10, 0, 255)
-            mask = cv2.inRange(hsv, lower, upper)
-            mask = self._clean_mask(mask)
-            series = self._mask_to_series(mask, h, w)
-            if series:
-                result[ind["name"]] = series
-        return result
-
-    def _clean_mask(self, mask: np.ndarray) -> np.ndarray:
-        kernel = np.ones((3,3), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        return mask
-
-    def _mask_to_series(self, mask: np.ndarray, height: int, width: int):
-        series = []
-        step = max(1, width//120)
-        for x in range(0, width, step):
-            column = mask[:,x]
-            ys = np.where(column>0)[0]
-            if len(ys)==0: continue
-            y = int(np.mean(ys))
-            series.append(float(height - y))
-        return series
-
-    # ----------------- CALIBRATION HELPERS -----------------
-    def _apply_price_calibration(self, candles, calibration):
-        out=[]
-        for c in candles:
-            out.append(Candle(
-                open=calibration.pixel_to_price(c.open),
-                close=calibration.pixel_to_price(c.close),
-                high=calibration.pixel_to_price(c.high),
-                low=calibration.pixel_to_price(c.low)
-            ))
-        return out
-
-    def _calibrate_series(self, series, calibration):
-        return [calibration.pixel_to_price(v) for v in series]
-
-    # ----------------- NUMERIC HELPERS -----------------
-    def _estimate_volatility(self, candles):
-        if len(candles)<2: return 0.0
-        closes = np.array([c.close for c in candles])
-        returns = np.diff(closes)
-        return float(np.std(returns))
-
-# ==================== ÖRNEK KULLANIM ====================
-if __name__=="__main__":
-    session_id = "session20251228_142900"
-    list_name = "MyDefaultList"
-    fb = FeatureBuilder(session_id=session_id, list_name=list_name)
-    # image = cv2.imread("test_chart.png")
-    # calibration = PixelPriceCalibration(pixel_top=0, pixel_bottom=500, price_top=100, price_bottom=200)
-    # feature = fb.build(image, interval="1M", calibration=calibration)
-    # print(feature)
+    return feature_dict
