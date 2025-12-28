@@ -1,0 +1,98 @@
+[
+    {
+        "name": "ADX",
+        "type": "ADX",
+        "params": {"period": 14},
+        "color": [255, 0, 0],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Alligator",
+        "type": "Alligator",
+        "params": {"jaw": 13, "teeth": 8, "lips": 5},
+        "color": [0, 255, 0],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Bollinger_Bands",
+        "type": "Bollinger",
+        "params": {"period": 20, "std_dev": 2},
+        "color": [0, 0, 255],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Moving_Average",
+        "type": "MA",
+        "params": {"period": 50, "method": "EMA"},
+        "color": [255, 255, 0],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Fractal",
+        "type": "Fractal",
+        "params": {"lookback": 5},
+        "color": [255, 0, 255],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Ichimoku",
+        "type": "Ichimoku",
+        "params": {"tenkan": 9, "kijun": 26, "senkou": 52},
+        "color": [0, 255, 255],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Keltner_Channels",
+        "type": "Keltner",
+        "params": {"period": 20, "multiplier": 2},
+        "color": [128, 128, 0],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "MACD",
+        "type": "MACD",
+        "params": {"fast": 12, "slow": 26, "signal": 9},
+        "color": [128, 0, 128],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "RSI",
+        "type": "RSI",
+        "params": {"period": 14},
+        "color": [0, 128, 128],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Stochastic_Oscillator",
+        "type": "Stochastic",
+        "params": {"k_period": 14, "d_period": 3},
+        "color": [128, 128, 128],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "Supertrend",
+        "type": "Supertrend",
+        "params": {"period": 10, "multiplier": 3},
+        "color": [255, 128, 0],
+        "line_thickness": 2,
+        "background_color": [0, 0, 0]
+    },
+    {
+        "name": "ZigZag",
+        "type": "ZigZag",
+        "params": {"deviation": 5},
+        "color": [0, 0, 0],
+        "line_thickness": 2,
+        "background_color": [255, 255, 255]
+    }
+]
