@@ -65,6 +65,16 @@ class Candle:
     high: float
     low: float
 
+    @property
+    def direction(self) -> int:
+        """1 = bullish, -1 = bearish, 0 = doji"""
+        if self.close > self.open:
+            return 1
+        elif self.close < self.open:
+            return -1
+        else:
+            return 0
+
 @dataclass
 class Feature:
     candles: List[Candle]
