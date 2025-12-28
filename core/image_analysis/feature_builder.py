@@ -256,3 +256,5 @@ class FeatureBuilder:
         closes = np.array([c.close for c in candles])
         returns = np.diff(closes)
         return float(np.std(returns))
+
+#   feature_to_dict tanımlı değil (saat 5 oldu ölsem yazmam)
